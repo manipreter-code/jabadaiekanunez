@@ -1607,8 +1607,9 @@ function DonationsDashboard({ onBack, sesion, onNavigate, vistaActual }) {
 
   const donorMatches = useMemo(() => {
     if (!donorFilter.trim() || selectedDonor) return [];
-    const q = donorFilter.trim().toLowerCase();
-    return allDonors.filter(d => d.toLowerCase().includes(q)).slice(0, 8);
+    const norm = x => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const palabras = norm(donorFilter).split(/\s+/).filter(Boolean);
+    return allDonors.filter(d => { const n = norm(d); return palabras.every(w => n.includes(w)); });
   }, [donorFilter, allDonors, selectedDonor]);
 
   const [showAnalisis, setShowAnalisis] = useState(true);
@@ -1952,9 +1953,10 @@ function DonationsDashboard({ onBack, sesion, onNavigate, vistaActual }) {
             onChange={e => { setDonorFilter(e.target.value); setSelectedDonor(null); }}
           />
           {donorMatches.length > 0 && (
-            <div className="df-suggest">
+            <div className="df-suggest" style={{ position: 'static', width: '100%', maxWidth: 440, maxHeight: '45vh', overflowY: 'auto', marginTop: 8 }}>
+              <div className="df-sans" style={{ fontSize: 11.5, color: '#7E746A', padding: '8px 14px', borderBottom: '1px solid #F2E9DE' }}>{donorMatches.length} {donorMatches.length === 1 ? 'resultado' : 'resultados'}</div>
               {donorMatches.map(d => (
-                <div key={d} className="df-suggest-item" onClick={() => { setSelectedDonor(d); setDonorFilter(''); }}>{d}</div>
+                <div key={d} className="df-suggest-item" style={{ whiteSpace: 'normal', wordBreak: 'break-word' }} onClick={() => { setSelectedDonor(d); setDonorFilter(''); }}>{d}</div>
               ))}
             </div>
           )}
