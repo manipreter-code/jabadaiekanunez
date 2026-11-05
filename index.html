@@ -109,11 +109,9 @@ function normalizeName(s) {
     .toLowerCase().trim().replace(/\s+/g, ' ');
 }
 
-// WhatsApp: en celular abre directo la app WhatsApp normal (no pregunta por Business); en compu usa wa.me
+// WhatsApp: enlace universal wa.me (en el celular lo toma el WhatsApp normal)
 function urlWhatsApp(num, texto) {
-  const movil = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent || '');
-  const t = texto ? (movil ? '&text=' : '?text=') + encodeURIComponent(texto) : '';
-  return movil ? `whatsapp://send?phone=${num}${t}` : `https://wa.me/${num}${t}`;
+  return `https://wa.me/${num}${texto ? '?text=' + encodeURIComponent(texto) : ''}`;
 }
 function BotonWhatsApp({ celular, texto, chico }) {
   const num = celularParaWhatsapp(celular);
