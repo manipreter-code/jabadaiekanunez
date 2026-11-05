@@ -1993,11 +1993,11 @@ function DonationsDashboard({ onBack, sesion, onNavigate, vistaActual }) {
           <div className="df-card" style={{ padding: '20px 18px', border: '1px solid #D2722B', width: '100%', maxWidth: 480, maxHeight: '85vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 22 }}>
               <div>
-                <div className="df-eyebrow" style={{ marginBottom: 8 }}>Perfil del donante</div>
+                <div className="df-eyebrow" style={{ marginBottom: 8 }}>{donorProfile.count > 0 ? 'Perfil del donante' : 'Ficha de contacto'}</div>
                 <div className="df-serif" style={{ fontSize: 27, color: '#2B2C2E', fontWeight: 600 }}>{selectedDonor}</div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 8 }}>
                   <span className="df-serif" style={{ fontSize: 22, color: '#B35A1A', fontWeight: 700 }}>{donorProfile.count}</span>
-                  <span className="df-sans" style={{ fontSize: 13, color: '#7E746A' }}>donaciones · primera el {donorProfile.primeraFecha}</span>
+                  <span className="df-sans" style={{ fontSize: 13, color: '#7E746A' }}>{donorProfile.count > 0 ? `donaciones · primera el ${donorProfile.primeraFecha}` : 'Todavía no registra donaciones'}</span>
                 </div>
                 {donorProfile.mayorDonacion && (
                   <div className="df-sans" style={{ fontSize: 12.5, color: '#7E746A', marginTop: 4 }}>
@@ -2014,7 +2014,7 @@ function DonationsDashboard({ onBack, sesion, onNavigate, vistaActual }) {
                 <>
                   <div className="df-label" style={{ color: '#9B72CF', marginBottom: 8 }}>📇 Ficha de contacto</div>
                   <div className="df-sans" style={{ fontSize: 13, color: '#2B2C2E', lineHeight: 1.7 }}>
-                    {contactoVinculado.celular && <div>Celular: <strong>{contactoVinculado.celular.slice(0,2)} {contactoVinculado.celular.slice(2,6)}-{contactoVinculado.celular.slice(6)}</strong></div>}
+                    {contactoVinculado.celular && <div>Celular: <strong>{contactoVinculado.celular.slice(0,2)} {contactoVinculado.celular.slice(2,6)}-{contactoVinculado.celular.slice(6)}</strong> {celularParaWa(contactoVinculado.celular) && <a href={`https://wa.me/${celularParaWa(contactoVinculado.celular)}`} target="_blank" rel="noopener noreferrer" className="df-btn active" style={{ textDecoration: 'none', display: 'inline-block', fontSize: 12, padding: '3px 10px', marginLeft: 8 }}>WhatsApp</a>}</div>}
                     {contactoVinculado.direccion && <div>Dirección: <strong>{contactoVinculado.direccion}</strong></div>}
                     {contactoVinculado.email && <div>Email: <strong>{contactoVinculado.email}</strong></div>}
                     {contactoVinculado.nombre_hebreo && <div>Nombre hebreo: <strong>{contactoVinculado.nombre_hebreo}</strong></div>}
@@ -2041,7 +2041,7 @@ function DonationsDashboard({ onBack, sesion, onNavigate, vistaActual }) {
                           return (
                             <div key={m.id} className="df-sans" style={{ fontSize: 13, color: '#2B2C2E', display: 'flex', justifyContent: 'space-between', gap: 10, padding: '3px 0' }}>
                               <span>
-                                {nombreDon ? <span className="donor-link" style={{ fontWeight: 600, cursor: 'pointer' }} onClick={() => setSelectedDonor(nombreDon)}>{nom}</span> : <strong>{nom}</strong>}
+                                <span className="donor-link" style={{ fontWeight: 600, cursor: 'pointer' }} onClick={() => setSelectedDonor(nombreDon || nom)}>{nom}</span>
                                 {m.celular ? <span style={{ color: '#7E746A' }}> · {m.celular}</span> : null}
                               </span>
                               <span style={{ color: '#B35A1A', fontWeight: 700, whiteSpace: 'nowrap' }}>{nombreDon ? fmtUsd(tot) : 'sin donaciones'}</span>
@@ -2075,11 +2075,9 @@ function DonationsDashboard({ onBack, sesion, onNavigate, vistaActual }) {
               )}
             </div>
 
-            {(() => {
+            {donorProfile.count > 0 && (() => {
               const mesesSin = donorProfile.ultimaFecha ? mesesDesdeFecha(donorProfile.ultimaFecha) : null;
               const promedio = donorProfile.count ? donorProfile.totalUsd / donorProfile.count : 0;
-              const waSaludo = linkWa(selectedDonor, 'Hola {nombre}, ¿cómo estás? Te escribimos del Beit Jabad Aieka Núñez. ¡Un abrazo!');
-              const waGracias = linkWa(selectedDonor, 'Hola {nombre}, queríamos agradecerte de corazón por tu colaboración con el Beit Jabad Aieka Núñez. ¡Gracias por ser parte de la comunidad!');
               return (
                 <div style={{ marginBottom: 22 }}>
                   <div className="df-sans" style={{ fontSize: 13, color: '#2B2C2E', lineHeight: 1.7 }}>
@@ -2087,20 +2085,11 @@ function DonationsDashboard({ onBack, sesion, onNavigate, vistaActual }) {
                     <div>Donó en <strong>{donorProfile.years.length}</strong> {donorProfile.years.length === 1 ? 'año' : 'años'} distintos · promedio por donación: <strong>{fmtUsd(promedio)}</strong></div>
                     {mesesSin !== null && mesesSin >= 12 && <div style={{ color: '#B35A1A', fontWeight: 700 }}>Se enfrió: hace más de un año que no dona.</div>}
                   </div>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
-                    {waSaludo ? (
-                      <>
-                        <a href={waSaludo} target="_blank" rel="noopener noreferrer" className="df-btn" style={{ textDecoration: 'none' }}>Saludar por WhatsApp</a>
-                        <a href={waGracias} target="_blank" rel="noopener noreferrer" className="df-btn active" style={{ textDecoration: 'none' }}>Agradecer por WhatsApp</a>
-                      </>
-                    ) : (
-                      <span className="df-sans" style={{ fontSize: 11.5, color: '#B5AA9E' }}>Para escribirle por WhatsApp, vinculá su ficha con un celular cargado.</span>
-                    )}
-                  </div>
                 </div>
               );
             })()}
 
+            {donorProfile.count > 0 && (<>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 14, marginBottom: 26 }}>
               <div style={{ background: '#FDEEDF', border: '1px solid #EADFD3', borderRadius: 8, padding: '14px 16px' }}>
                 <div className="df-label" style={{ marginBottom: 8, color: '#D2722B' }}>Total histórico en US$</div>
@@ -2169,6 +2158,7 @@ function DonationsDashboard({ onBack, sesion, onNavigate, vistaActual }) {
                 <div className="df-sans" style={{ textAlign: 'center', padding: 24, color: '#7E746A' }}>Sin donaciones para este filtro.</div>
               )}
             </div>
+            </>)}
           </div>
           </div>
         )}
