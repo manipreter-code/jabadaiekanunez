@@ -1552,7 +1552,9 @@ function DonationsDashboard({ onBack, sesion, onNavigate, vistaActual }) {
     const yearsList = Object.keys(byYearMap).sort().map(y => ({ year: y, ...byYearMap[y] }));
     const first = [...rows].sort((a, b) => a.fecha.split('/').reverse().join('') - b.fecha.split('/').reverse().join(''))[0];
     const mayor = [...rows].sort((a, b) => b.totalUsd - a.totalUsd)[0];
-    return { totalUsd, totalArs, totalUsdDirecto, count: rows.length, years: yearsList, primeraFecha: first ? first.fecha : '—', rows, mayorDonacion: mayor };
+    const parseF = f => { const [d, m, y] = f.split('/').map(Number); return new Date(y, m - 1, d).getTime(); };
+    const ultima = [...rows].sort((a, b) => parseF(b.fecha) - parseF(a.fecha))[0];
+    return { ultimaFecha: ultima ? ultima.fecha : null, totalUsd, totalArs, totalUsdDirecto, count: rows.length, years: yearsList, primeraFecha: first ? first.fecha : '—', rows, mayorDonacion: mayor };
   }, [RAW, selectedDonor]);
 
   const [donorProfileYearFilter, setDonorProfileYearFilter] = useState('Todos');
@@ -1611,6 +1613,50 @@ function DonationsDashboard({ onBack, sesion, onNavigate, vistaActual }) {
     const palabras = norm(donorFilter).split(/\s+/).filter(Boolean);
     return allDonors.filter(d => { const n = norm(d); return palabras.every(w => n.includes(w)); });
   }, [donorFilter, allDonors, selectedDonor]);
+
+  // ---- Donantes que se enfriaron: donaban antes y hace tiempo que no donan ----
+  const [friosMeses, setFriosMeses] = useState(12);
+  const [friosMin, setFriosMin] = useState(100);
+  const [friosAbierto, setFriosAbierto] = useState(false);
+  const [friosVerTodos, setFriosVerTodos] = useState(false);
+  const [friosMensaje, setFriosMensaje] = useState('Hola {nombre}, ¿cómo estás? Te escribimos del Beit Jabad Aieka Núñez. Hace un tiempo que no nos vemos y queríamos saludarte y agradecerte todo lo que colaboraste con la comunidad. Ojalá nos podamos reencontrar pronto. ¡Un abrazo!');
+  const mesesDesdeFecha = (f) => {
+    const [d, m, y] = String(f).split('/').map(Number);
+    const hoy = new Date();
+    return (hoy.getFullYear() - y) * 12 + (hoy.getMonth() + 1 - m) - (hoy.getDate() < d ? 1 : 0);
+  };
+  const celularParaWa = (cel) => {
+    let dig = String(cel || '').replace(/\D/g, '');
+    if (!dig) return '';
+    if (!dig.startsWith('54')) dig = '549' + dig.replace(/^0/, '');
+    return dig;
+  };
+  const contactoDeDonante = (nombreDonante) =>
+    contactosParaVincular.find(c => c.donante_vinculado === nombreDonante) ||
+    contactosParaVincular.find(c => normalizeName(`${c.nombre} ${c.apellido}`) === normalizeName(nombreDonante)) || null;
+  const linkWa = (nombreDonante, plantilla) => {
+    const c = contactoDeDonante(nombreDonante);
+    const num = celularParaWa(c && c.celular);
+    if (!num) return '';
+    const primerNombre = (c.nombre || nombreDonante).trim().split(' ')[0];
+    return `https://wa.me/${num}?text=${encodeURIComponent(plantilla.replace(/\{nombre\}/g, primerNombre))}`;
+  };
+  const donantesFrios = useMemo(() => {
+    const map = {};
+    RAW.forEach(r => {
+      if (!r.donante) return;
+      const [d, m, y] = r.fecha.split('/').map(Number);
+      const t = new Date(y, m - 1, d).getTime();
+      if (!map[r.donante]) map[r.donante] = { donante: r.donante, total: 0, count: 0, ultima: t, ultimaFecha: r.fecha, ultimoMonto: r.totalUsd };
+      const o = map[r.donante];
+      o.total += r.totalUsd; o.count += 1;
+      if (t >= o.ultima) { o.ultima = t; o.ultimaFecha = r.fecha; o.ultimoMonto = r.totalUsd; }
+    });
+    return Object.values(map)
+      .map(o => ({ ...o, meses: mesesDesdeFecha(o.ultimaFecha) }))
+      .filter(o => o.meses >= friosMeses && o.total >= friosMin)
+      .sort((a, b) => b.total - a.total);
+  }, [RAW, friosMeses, friosMin]);
 
   const [showAnalisis, setShowAnalisis] = useState(true);
   const [showTopNames, setShowTopNames] = useState({ top5: false, top10: false });
@@ -1962,6 +2008,68 @@ function DonationsDashboard({ onBack, sesion, onNavigate, vistaActual }) {
           )}
         </div>
 
+        {/* Donantes que se enfriaron */}
+        <div className="df-card" style={{ padding: '16px 16px', marginBottom: 26 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, cursor: 'pointer' }} onClick={() => setFriosAbierto(!friosAbierto)}>
+            <div>
+              <div className="df-label" style={{ color: '#B35A1A' }}>Donantes que se enfriaron</div>
+              <div className="df-sans" style={{ fontSize: 12.5, color: '#7E746A', marginTop: 4 }}>
+                {donantesFrios.length} {donantesFrios.length === 1 ? 'persona donó' : 'personas donaron'} antes y hace {friosMeses} meses o más que no donan.
+              </div>
+            </div>
+            <span className="df-sans" style={{ fontSize: 13, color: '#7E746A', whiteSpace: 'nowrap' }}>{friosAbierto ? 'Ocultar ▲' : 'Ver ▼'}</span>
+          </div>
+          {friosAbierto && (
+            <div style={{ marginTop: 14 }}>
+              <div className="df-filterbar" style={{ marginBottom: 12 }}>
+                <select className="df-input" value={friosMeses} onChange={e => setFriosMeses(Number(e.target.value))}>
+                  <option value={6}>Sin donar hace 6 meses o más</option>
+                  <option value={12}>Sin donar hace 12 meses o más</option>
+                  <option value={18}>Sin donar hace 18 meses o más</option>
+                  <option value={24}>Sin donar hace 24 meses o más</option>
+                </select>
+                <select className="df-input" value={friosMin} onChange={e => setFriosMin(Number(e.target.value))}>
+                  <option value={0}>Cualquier monto histórico</option>
+                  <option value={100}>Donaron US$ 100 o más en total</option>
+                  <option value={500}>Donaron US$ 500 o más en total</option>
+                  <option value={1000}>Donaron US$ 1.000 o más en total</option>
+                </select>
+              </div>
+              <div className="df-sans" style={{ fontSize: 11.5, color: '#7E746A', marginBottom: 6 }}>Mensaje para WhatsApp (se completa solo con el nombre de cada persona):</div>
+              <textarea className="df-input" rows={4} style={{ width: '100%', marginBottom: 14, resize: 'vertical' }} value={friosMensaje} onChange={e => setFriosMensaje(e.target.value)} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {(friosVerTodos ? donantesFrios : donantesFrios.slice(0, 25)).map(o => {
+                  const wa = linkWa(o.donante, friosMensaje);
+                  return (
+                    <div key={o.donante} className="df-donation-card" style={{ cursor: 'pointer' }} onClick={() => setSelectedDonor(o.donante)}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
+                        <span className="df-sans" style={{ fontSize: 14, fontWeight: 700, color: '#2B2C2E', wordBreak: 'break-word' }}>{o.donante}</span>
+                        <span className="df-serif" style={{ fontSize: 15, color: '#D2722B', fontWeight: 700, whiteSpace: 'nowrap' }}>{fmtUsd(o.total)}</span>
+                      </div>
+                      <div className="df-sans" style={{ fontSize: 12, color: '#7E746A', marginTop: 4 }}>
+                        Última donación el {o.ultimaFecha} ({fmtUsd(o.ultimoMonto)}), hace {o.meses >= 24 ? `${Math.floor(o.meses / 12)} años` : `${o.meses} meses`} · {o.count} {o.count === 1 ? 'donación' : 'donaciones'} en total
+                      </div>
+                      <div style={{ marginTop: 8 }} onClick={e => e.stopPropagation()}>
+                        {wa ? (
+                          <a href={wa} target="_blank" rel="noopener noreferrer" className="df-btn active" style={{ textDecoration: 'none', display: 'inline-block', fontSize: 12.5 }}>Escribir por WhatsApp</a>
+                        ) : (
+                          <span className="df-sans" style={{ fontSize: 11.5, color: '#B5AA9E' }}>Sin celular cargado en Base de Datos. Tocá la tarjeta para vincular su contacto.</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+                {donantesFrios.length === 0 && (
+                  <div className="df-sans" style={{ textAlign: 'center', padding: 20, color: '#7E746A' }}>No hay donantes con ese filtro.</div>
+                )}
+                {donantesFrios.length > 25 && (
+                  <button className="df-btn" onClick={() => setFriosVerTodos(!friosVerTodos)}>{friosVerTodos ? 'Ver menos' : `Ver los ${donantesFrios.length}`}</button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Perfil del donante seleccionado: ahora como pop-up */}
         {donorProfile && (
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(30,30,20,0.55)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={() => setSelectedDonor(null)}>
@@ -2023,6 +2131,32 @@ function DonationsDashboard({ onBack, sesion, onNavigate, vistaActual }) {
                 </>
               )}
             </div>
+
+            {(() => {
+              const mesesSin = donorProfile.ultimaFecha ? mesesDesdeFecha(donorProfile.ultimaFecha) : null;
+              const promedio = donorProfile.count ? donorProfile.totalUsd / donorProfile.count : 0;
+              const waSaludo = linkWa(selectedDonor, 'Hola {nombre}, ¿cómo estás? Te escribimos del Beit Jabad Aieka Núñez. ¡Un abrazo!');
+              const waGracias = linkWa(selectedDonor, 'Hola {nombre}, queríamos agradecerte de corazón por tu colaboración con el Beit Jabad Aieka Núñez. ¡Gracias por ser parte de la comunidad!');
+              return (
+                <div style={{ marginBottom: 22 }}>
+                  <div className="df-sans" style={{ fontSize: 13, color: '#2B2C2E', lineHeight: 1.7 }}>
+                    {donorProfile.ultimaFecha && <div>Última donación: <strong>{donorProfile.ultimaFecha}</strong>{mesesSin !== null && mesesSin >= 1 ? ` (hace ${mesesSin >= 24 ? Math.floor(mesesSin / 12) + ' años' : mesesSin + ' meses'})` : ''}</div>}
+                    <div>Donó en <strong>{donorProfile.years.length}</strong> {donorProfile.years.length === 1 ? 'año' : 'años'} distintos · promedio por donación: <strong>{fmtUsd(promedio)}</strong></div>
+                    {mesesSin !== null && mesesSin >= 12 && <div style={{ color: '#B35A1A', fontWeight: 700 }}>Se enfrió: hace más de un año que no dona.</div>}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+                    {waSaludo ? (
+                      <>
+                        <a href={waSaludo} target="_blank" rel="noopener noreferrer" className="df-btn" style={{ textDecoration: 'none' }}>Saludar por WhatsApp</a>
+                        <a href={waGracias} target="_blank" rel="noopener noreferrer" className="df-btn active" style={{ textDecoration: 'none' }}>Agradecer por WhatsApp</a>
+                      </>
+                    ) : (
+                      <span className="df-sans" style={{ fontSize: 11.5, color: '#B5AA9E' }}>Para escribirle por WhatsApp, vinculá su ficha con un celular cargado.</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 14, marginBottom: 26 }}>
               <div style={{ background: '#FDEEDF', border: '1px solid #EADFD3', borderRadius: 8, padding: '14px 16px' }}>
