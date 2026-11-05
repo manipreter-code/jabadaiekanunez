@@ -109,6 +109,20 @@ function normalizeName(s) {
     .toLowerCase().trim().replace(/\s+/g, ' ');
 }
 
+// WhatsApp: en celular abre directo la app WhatsApp normal (no pregunta por Business); en compu usa wa.me
+function urlWhatsApp(num, texto) {
+  const movil = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent || '');
+  const t = texto ? (movil ? '&text=' : '?text=') + encodeURIComponent(texto) : '';
+  return movil ? `whatsapp://send?phone=${num}${t}` : `https://wa.me/${num}${t}`;
+}
+function BotonWhatsApp({ celular, texto, chico }) {
+  const num = celularParaWhatsapp(celular);
+  if (!num) return null;
+  return (
+    <a href={urlWhatsApp(num, texto)} onClick={e => e.stopPropagation()} style={{ display: 'inline-block', textDecoration: 'none', background: '#1E8F5F', color: '#FFFFFF', fontFamily: "'Assistant', sans-serif", fontWeight: 700, fontSize: chico ? 12 : 13, borderRadius: 6, padding: chico ? '3px 10px' : '6px 14px', whiteSpace: 'nowrap' }}>WhatsApp</a>
+  );
+}
+
 // Distancia de edición simple, para detectar nombres "parecidos" (no solo iguales)
 function distanciaLevenshtein(a, b) {
   const m = a.length, n = b.length;
@@ -1635,7 +1649,7 @@ function DonationsDashboard({ onBack, sesion, onNavigate, vistaActual }) {
     const num = celularParaWa(c && c.celular);
     if (!num) return '';
     const primerNombre = (c.nombre || nombreDonante).trim().split(' ')[0];
-    return `https://wa.me/${num}?text=${encodeURIComponent(plantilla.replace(/\{nombre\}/g, primerNombre))}`;
+    return urlWhatsApp(num, plantilla.replace(/\{nombre\}/g, primerNombre));
   };
   const [showAnalisis, setShowAnalisis] = useState(true);
   const [showTopNames, setShowTopNames] = useState({ top5: false, top10: false });
@@ -2014,7 +2028,7 @@ function DonationsDashboard({ onBack, sesion, onNavigate, vistaActual }) {
                 <>
                   <div className="df-label" style={{ color: '#9B72CF', marginBottom: 8 }}>📇 Ficha de contacto</div>
                   <div className="df-sans" style={{ fontSize: 13, color: '#2B2C2E', lineHeight: 1.7 }}>
-                    {contactoVinculado.celular && <div>Celular: <strong>{contactoVinculado.celular.slice(0,2)} {contactoVinculado.celular.slice(2,6)}-{contactoVinculado.celular.slice(6)}</strong> {celularParaWa(contactoVinculado.celular) && <a href={`https://wa.me/${celularParaWa(contactoVinculado.celular)}`} target="_blank" rel="noopener noreferrer" className="df-btn active" style={{ textDecoration: 'none', display: 'inline-block', fontSize: 12, padding: '3px 10px', marginLeft: 8 }}>WhatsApp</a>}</div>}
+                    {contactoVinculado.celular && <div>Celular: <strong>{contactoVinculado.celular.slice(0,2)} {contactoVinculado.celular.slice(2,6)}-{contactoVinculado.celular.slice(6)}</strong> <span style={{ marginLeft: 8 }}><BotonWhatsApp celular={contactoVinculado.celular} chico /></span></div>}
                     {contactoVinculado.direccion && <div>Dirección: <strong>{contactoVinculado.direccion}</strong></div>}
                     {contactoVinculado.email && <div>Email: <strong>{contactoVinculado.email}</strong></div>}
                     {contactoVinculado.nombre_hebreo && <div>Nombre hebreo: <strong>{contactoVinculado.nombre_hebreo}</strong></div>}
@@ -2043,6 +2057,7 @@ function DonationsDashboard({ onBack, sesion, onNavigate, vistaActual }) {
                               <span>
                                 <span className="donor-link" style={{ fontWeight: 600, cursor: 'pointer' }} onClick={() => setSelectedDonor(nombreDon || nom)}>{nom}</span>
                                 {m.celular ? <span style={{ color: '#7E746A' }}> · {m.celular}</span> : null}
+                                {m.celular ? <span style={{ marginLeft: 8 }}><BotonWhatsApp celular={m.celular} chico /></span> : null}
                               </span>
                               <span style={{ color: '#B35A1A', fontWeight: 700, whiteSpace: 'nowrap' }}>{nombreDon ? fmtUsd(tot) : 'sin donaciones'}</span>
                             </div>
@@ -6200,7 +6215,7 @@ function ListasWhatsApp({ contactos, filtrados, onClose }) {
     const tel = celularParaWhatsapp(c.celular);
     if (!tel) return;
     const texto = (mensaje || '').replace(/\{nombre\}/gi, (c.nombre || '').trim().split(' ')[0]);
-    window.open(`https://wa.me/${tel}?text=${encodeURIComponent(texto)}`, '_blank');
+    { const u = urlWhatsApp(tel, texto); if (u.startsWith('whatsapp:')) window.location.href = u; else window.open(u, '_blank'); }
     const ahora = new Date().toISOString();
     setMiembros(prev => prev.map(x => x.id === m.id ? { ...x, invitado_en: ahora } : x));
     try { await supabasePatch('listas_whatsapp_miembros', m.id, { invitado_en: ahora }); } catch (e) {}
@@ -7393,7 +7408,7 @@ function ContactosModule({ onBack, sesion, onNavigate, vistaActual }) {
                         {c.nivel_participacion && (
                           <div style={{ fontFamily: "'Assistant', sans-serif", fontSize: 11, color: colorDeNivel(c.nivel_participacion), fontWeight: 600, marginTop: 1 }}>{c.nivel_participacion}</div>
                         )}
-                        <div style={{ fontFamily: "'Assistant', sans-serif", fontSize: 12.5, color: '#7E746A', marginTop: 2 }}>{formatCelular(c.celular)}</div>
+                        <div style={{ fontFamily: "'Assistant', sans-serif", fontSize: 12.5, color: '#7E746A', marginTop: 2 }}>{formatCelular(c.celular)} <span style={{ marginLeft: 8 }}><BotonWhatsApp celular={c.celular} chico /></span></div>
                         {c.direccion && <div style={{ fontFamily: "'Assistant', sans-serif", fontSize: 12, color: '#8B8178', marginTop: 2 }}>{c.direccion}</div>}
                         {c.cumple_gregoriano && (
                           <div style={{ fontFamily: "'Assistant', sans-serif", fontSize: 12, color: '#8B8178', marginTop: 2 }}>
@@ -7708,7 +7723,7 @@ function ContactosModule({ onBack, sesion, onNavigate, vistaActual }) {
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontFamily: "'Assistant', sans-serif", fontWeight: 700, fontSize: 14 }}>{c.nombre} {c.apellido}</span>
-                    <span style={{ fontFamily: "'Assistant', sans-serif", fontSize: 12.5, color: '#7E746A' }}>{formatCelular(c.celular)}</span>
+                    <span style={{ fontFamily: "'Assistant', sans-serif", fontSize: 12.5, color: '#7E746A' }}>{formatCelular(c.celular)} <span style={{ marginLeft: 8 }}><BotonWhatsApp celular={c.celular} chico /></span></span>
                   </div>
                   {(c.categorias || []).length > 0 && (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
@@ -7756,7 +7771,7 @@ function ContactosModule({ onBack, sesion, onNavigate, vistaActual }) {
             )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontFamily: "'Assistant', sans-serif", fontSize: 14 }}>
-              <div><span style={{ color: '#8B8178' }}>Celular: </span>{formatCelular(viendoContacto.celular)}</div>
+              <div><span style={{ color: '#8B8178' }}>Celular: </span>{formatCelular(viendoContacto.celular)} <span style={{ marginLeft: 8 }}><BotonWhatsApp celular={viendoContacto.celular} /></span></div>
               {viendoContacto.direccion && <div><span style={{ color: '#8B8178' }}>Dirección: </span>{viendoContacto.direccion}</div>}
               {viendoContacto.cumple_gregoriano && (
                 <>
@@ -9801,7 +9816,7 @@ function CumpleañosModule({ onBack, sesion, onNavigate, vistaActual }) {
             <div className="df-serif" style={{ fontSize: 20, color: '#2B2C2E', fontWeight: 600, marginBottom: 14 }}>{viendoFicha.nombre} {viendoFicha.apellido}</div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16, fontFamily: "'Assistant', sans-serif", fontSize: 13.5 }}>
-              {viendoFicha.celular && <div><span style={{ color: '#8B8178' }}>Celular: </span>{viendoFicha.celular}</div>}
+              {viendoFicha.celular && <div><span style={{ color: '#8B8178' }}>Celular: </span>{viendoFicha.celular} <span style={{ marginLeft: 8 }}><BotonWhatsApp celular={viendoFicha.celular} /></span></div>}
               {viendoFicha.direccion && <div><span style={{ color: '#8B8178' }}>Dirección: </span>{viendoFicha.direccion}</div>}
               {viendoFicha.cumple_gregoriano && <div><span style={{ color: '#8B8178' }}>Cumpleaños gregoriano: </span>{viendoFicha.cumple_gregoriano.split('-').reverse().join('/')}</div>}
               {viendoFicha.cumple_hebreo && <div><span style={{ color: '#8B8178' }}>Cumpleaños hebreo: </span>{formatearFechaHebrea(viendoFicha.cumple_hebreo) || '—'}</div>}
