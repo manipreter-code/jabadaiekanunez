@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Saludo de cumpleaños</title>
+<style>
+  :root { --naranja:#D2722B; --naranja-osc:#B35A1A; --carbon:#2B2C2E; --verde:#1E8F5F; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; color:var(--carbon);
+    background: linear-gradient(180deg,#FFE6CC 0%,#FFD9B8 45%,#FFEBD9 100%); min-height:100vh; }
+  main { max-width:520px; margin:0 auto; padding:20px 16px 40px; }
+  h1 { font-size:20px; margin:4px 0 14px; }
+  .msg { background:rgba(255,255,255,.85); border:1px solid rgba(210,114,43,.35); border-radius:14px; padding:14px 16px; white-space:pre-line; line-height:1.5; font-size:16px; }
+  img { width:100%; border-radius:14px; margin:16px 0 4px; display:block; box-shadow:0 8px 24px rgba(190,95,25,.2); }
+  button, a.btn { display:block; width:100%; text-align:center; text-decoration:none; border:0; border-radius:999px; padding:15px 18px; font-size:17px; font-weight:700; margin-top:12px; cursor:pointer; }
+  .principal { background:linear-gradient(180deg,#EE9A55 0%,#D2722B 100%); color:#fff; }
+  .wa { background:var(--verde); color:#fff; }
+  .sec { background:rgba(255,255,255,.8); color:var(--naranja-osc); border:1px solid rgba(210,114,43,.5); }
+  .nota { font-size:13px; color:#7E746A; margin-top:14px; line-height:1.45; }
+</style>
+</head>
+<body>
+<main>
+  <h1 id="titulo">Saludo de cumpleaños</h1>
+  <div class="msg" id="msg"></div>
+  <img src="flyer-cumple.jpg" alt="10 cosas para hacer en el día de tu cumpleaños judío">
+  <button class="principal" id="compartir">Mandar flyer y mensaje</button>
+  <a class="btn wa" id="chat" style="display:none" target="_blank" rel="noopener"></a>
+  <button class="sec" id="copiar">Copiar mensaje</button>
+  <div class="nota" id="nota"></div>
+</main>
+<script>
+(function () {
+  var q = new URLSearchParams(location.search);
+  var n = (q.get('n') || '').trim();
+  var p = (q.get('p') || '').replace(/\D/g, '');
+  var msg = 'Hola ' + n + ', feliz cumple!\nAcá te dejo una lista de 10 cosas buenas para hacer en el cumpleaños!\nLéelo y fíjate que podes hacer 😊';
+  document.getElementById('msg').textContent = msg;
+  if (n) document.getElementById('titulo').textContent = 'Saludo para ' + n;
+  var nota = document.getElementById('nota');
+  var archivo = null;
+  fetch('flyer-cumple.jpg').then(function (r) { return r.blob(); }).then(function (b) {
+    archivo = new File([b], 'flyer-cumple.jpg', { type: 'image/jpeg' });
+  }).catch(function () {});
+
+  document.getElementById('compartir').addEventListener('click', function () {
+    if (archivo && navigator.canShare && navigator.canShare({ files: [archivo] })) {
+      navigator.share({ files: [archivo], text: msg }).catch(function () {});
+      nota.textContent = 'Elegí WhatsApp y la persona. Si el texto no aparece con la imagen, tocá "Copiar mensaje" y pegalo.';
+    } else {
+      nota.textContent = 'Este dispositivo no permite compartir la imagen desde acá. Usá el botón de abrir el chat y adjuntá el flyer desde Fotos.';
+    }
+  });
+  document.getElementById('copiar').addEventListener('click', function () {
+    var ok = function () { nota.textContent = 'Mensaje copiado.'; };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(msg).then(ok).catch(function () {});
+  });
+  if (p) {
+    var a = document.getElementById('chat');
+    a.style.display = 'block';
+    a.textContent = 'Abrir chat con ' + (n || 'la persona') + ' (solo texto)';
+    a.href = 'https://wa.me/' + p + '?text=' + encodeURIComponent(msg);
+  }
+})();
+</script>
+</body>
+</html>
